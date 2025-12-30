@@ -9,7 +9,7 @@ import logging
 import os
 
 # Import database and models
-from database import get_db, init_db
+from database import get_db, init_db, async_session_maker
 from schemas import (
     TaskCreate, TaskUpdate, TaskResponse, TaskListResponse, 
     ErrorResponse, TaskStatus
@@ -30,6 +30,33 @@ def multiply(a: float, b: float) -> float:
     """Multiply two numbers"""
     logger.debug("multiply tool invoked")
     return a * b
+
+@mcp.tool
+def return_four() -> float:
+    """Return the number 4"""
+    logger.debug("Return four tool invoked")
+    return 4
+
+@mcp.tool
+async def create_task_tool(task: TaskCreate) -> dict:
+    """MCP Tool: Create a new task"""
+    logger.info("Creating task: mcp tool")
+    async with async_session_maker() as db:
+        task_data = await TaskCRUD.create_task(db, task)
+        return task_data.to_dict()
+
+@mcp.tool
+async def get_tasks_tool() -> dict:
+    """MCP Tool: get all tasks from database"""
+    logger.info("Getting all tasks from database")
+    try:
+        async with async_session_maker() as db:
+            tasks, total = await TaskCRUD.get_tasks(db)
+            task_responses = [TaskResponse(**task.to_dict()) for task in tasks]
+            return TaskListResponse(tasks=task_responses, total=total)
+    except Exception as e:
+        logger.error(f"Error getting tasks: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve tasks")
 
 @mcp.resource("config://version")
 def get_version() -> dict:
