@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 class TaskStatus(str, Enum):
@@ -17,8 +17,13 @@ class TaskCreate(BaseModel):
     @field_validator('due_date')
     @classmethod
     def validate_due_date(cls, v):
-        if v and v < datetime.now():
-            raise ValueError("Due date cannot be in the past")
+        if v:
+            # Make timezone-naive datetime timezone-aware (assume UTC)
+            if v.tzinfo is None:
+                v = v.replace(tzinfo=timezone.utc)
+            # Compare with current UTC time
+            if v < datetime.now(timezone.utc):
+                raise ValueError("Due date cannot be in the past")
         return v
 
 class TaskUpdate(BaseModel):
@@ -30,8 +35,13 @@ class TaskUpdate(BaseModel):
     @field_validator('due_date')
     @classmethod
     def validate_due_date(cls, v):
-        if v and v < datetime.now():
-            raise ValueError("Due date cannot be in the past")
+        if v:
+            # Make timezone-naive datetime timezone-aware (assume UTC)
+            if v.tzinfo is None:
+                v = v.replace(tzinfo=timezone.utc)
+            # Compare with current UTC time
+            if v < datetime.now(timezone.utc):
+                raise ValueError("Due date cannot be in the past")
         return v
 
 class TaskResponse(BaseModel):
