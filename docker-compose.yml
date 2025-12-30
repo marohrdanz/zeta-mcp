@@ -1,0 +1,8 @@
+services:
+  mcp:
+    build: .
+    container_name: zeta-mcp
+    volumes:
+      - ./app:/app
+    ports:
+      - 8001:8001
