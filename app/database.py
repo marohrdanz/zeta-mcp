@@ -36,8 +36,8 @@ class Task(Base):
     description = Column(Text, nullable=True)
     status = Column(String(50), nullable=False, default=TaskStatus.TODO.value)
     due_date = Column(DateTime(timezone=False), nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), nullable=False)
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(), nullable=False)
+    updated_at = Column(DateTime, default=lambda: datetime.now(), onupdate=lambda: datetime.now(), nullable=False)
 
     def to_dict(self):
         """Convert task to dictionary"""
