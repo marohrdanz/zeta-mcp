@@ -1,4 +1,21 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: zeta-postgres
+    environment:
+      POSTGRES_USER: taskuser
+      POSTGRES_PASSWORD: taskpass
+      POSTGRES_DB: taskmanager
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskuser -d taskmanager"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   mcp:
     build: .
     container_name: zeta-mcp
@@ -6,3 +23,11 @@ services:
       - ./app:/app
     ports:
       - 8001:8001
+    environment:
+      DATABASE_URL: postgresql+asyncpg://taskuser:taskpass@postgres:5432/taskmanager
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
