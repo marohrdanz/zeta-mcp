@@ -16,31 +16,19 @@ from schemas import (
 )
 from crud import TaskCRUD
 
-mcp = FastMCP("My Calculator")
+mcp = FastMCP("Task Manager")
 logger = log_setup.configure_logging('DEBUG')
 
 @mcp.tool
-def adds(a: int, b: int) -> int:
-    """Add two numbers together"""
-    logger.debug("adds tool invoked")
-    return a + b
-
-@mcp.tool
-def multiply(a: float, b: float) -> float:
-    """Multiply two numbers"""
-    logger.debug("multiply tool invoked")
-    return a * b
-
-@mcp.tool
-def return_four() -> float:
-    """Return the number 4"""
-    logger.debug("Return four tool invoked")
-    return 4
+def return_fourty_two() -> float:
+    """Return the number 42"""
+    logger.debug("Return fourty two tool invoked")
+    return 42
 
 @mcp.tool
 async def create_task_tool(task: TaskCreate) -> dict:
     """MCP Tool: Create a new task"""
-    logger.info("Creating task: mcp tool")
+    logger.info("Creating task: MCP tool")
     async with async_session_maker() as db:
         task_data = await TaskCRUD.create_task(db, task)
         return task_data.to_dict()
@@ -48,7 +36,7 @@ async def create_task_tool(task: TaskCreate) -> dict:
 @mcp.tool
 async def get_tasks_tool() -> dict:
     """MCP Tool: get all tasks from database"""
-    logger.info("Getting all tasks from database")
+    logger.info("Getting all tasks from database with MCP tool")
     try:
         async with async_session_maker() as db:
             tasks, total = await TaskCRUD.get_tasks(db)
@@ -62,13 +50,13 @@ async def get_tasks_tool() -> dict:
 def get_version() -> dict:
     """Provides the app's configuration"""
     logger.debug("version resource invoked")
-    return {"version": "2.0", "name": "Calculator"}
+    return {"version": "3.0", "name": "Task Manager"}
 
 @mcp.resource("greetings://{name}")
 def greet(name: str) -> str:
     """Generate a personalized greeting"""
     logger.debug("greeting resource invoked")
-    return f"Hello, {name}! Welcome to the calculator."
+    return f"Hello, {name}! Welcome to the task manager."
 
 mcp_app = mcp.http_app()
 
