@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 import log_setup as log_setup
 import logging
+import os
 
 # Import database and models
 from database import get_db, init_db
@@ -49,13 +50,14 @@ async def lifespan(app: FastAPI):
     global logger
     logger.info("Server starting up...")
     
-    # Initialize database
-    try:
-        await init_db()
-        logger.info("Database initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize database: {e}")
-        raise
+    # Initialize database (skip if in test mode)
+    if not os.getenv("TESTING", "false").lower() == "true":
+        try:
+            await init_db()
+            logger.info("Database initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize database: {e}")
+            raise
     
     async with mcp_app.lifespan(app):
         logger.info("MCP server starting up")

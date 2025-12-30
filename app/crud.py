@@ -3,7 +3,7 @@ from sqlalchemy import select, func
 from database import Task
 from schemas import TaskCreate, TaskUpdate
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 class TaskCRUD:
     """CRUD operations for tasks"""
@@ -78,7 +78,7 @@ class TaskCRUD:
         if task_data.due_date is not None:
             task.due_date = task_data.due_date
         
-        task.updated_at = datetime.utcnow()
+        task.updated_at = datetime.now(timezone.utc)
         
         await db.commit()
         await db.refresh(task)

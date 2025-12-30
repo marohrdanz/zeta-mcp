@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional
 from datetime import datetime
 from enum import Enum
@@ -35,6 +35,8 @@ class TaskUpdate(BaseModel):
         return v
 
 class TaskResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
     id: int
     title: str
     description: Optional[str]
@@ -42,9 +44,6 @@ class TaskResponse(BaseModel):
     due_date: Optional[datetime]
     created_at: datetime
     updated_at: datetime
-    
-    class Config:
-        from_attributes = True
 
 class TaskListResponse(BaseModel):
     tasks: list[TaskResponse]
