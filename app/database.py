@@ -4,6 +4,9 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, Enum
 from datetime import datetime, timezone
 import os
 import enum
+import log_setup as log_setup
+
+logger = log_setup.configure_logging('DEBUG')
 
 # Database URL from environment variable
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://taskuser:taskpass@localhost:5432/taskmanager")
@@ -28,14 +31,13 @@ class TaskStatus(str, enum.Enum):
 # Task model
 class Task(Base):
     __tablename__ = "tasks"
-    
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
     status = Column(String(50), nullable=False, default=TaskStatus.TODO.value)
-    due_date = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    due_date = Column(DateTime(timezone=False), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), nullable=False)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None), nullable=False)
 
     def to_dict(self):
         """Convert task to dictionary"""

@@ -2,6 +2,9 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional
 from datetime import datetime, timezone
 from enum import Enum
+import log_setup as log_setup
+
+logger = log_setup.configure_logging('DEBUG')
 
 class TaskStatus(str, Enum):
     TODO = "To Do"
@@ -17,12 +20,9 @@ class TaskCreate(BaseModel):
     @field_validator('due_date')
     @classmethod
     def validate_due_date(cls, v):
+        logger.debug(f"Validating due date: {v}")
         if v:
-            # Make timezone-naive datetime timezone-aware (assume UTC)
-            if v.tzinfo is None:
-                v = v.replace(tzinfo=timezone.utc)
-            # Compare with current UTC time
-            if v < datetime.now(timezone.utc):
+            if v.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
                 raise ValueError("Due date cannot be in the past")
         return v
 
