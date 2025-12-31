@@ -53,10 +53,9 @@ app.log
 htmlcov/
 .pytest_cache/
 
-# Docker
-.dockerignore
-
 # Temporary files
 *.tmp
 *.bak
 /tmp/
+
+node_modules
