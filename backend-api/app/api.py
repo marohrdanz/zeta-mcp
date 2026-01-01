@@ -1,29 +1,36 @@
-from fastapi import FastAPI, HTTPException, Depends, Query
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
-from contextlib import asynccontextmanager
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 from typing import Optional
+from datetime import datetime
+from contextlib import asynccontextmanager
+import anthropic
+from mcp import ClientSession, StdioServerParameters
+from enum import Enum
+
 import log_setup as log_setup
 import logging
-import os
-
-from crud import TaskCRUD
 
 logger = log_setup.configure_logging('DEBUG')
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    global logger
-    logger.info("Backend API starting up...")
+class TaskStatus(str, Enum):
+    """Defines task status enumeration."""
+    TODO = "To Do"
+    IN_PROGRESS = "In Progress"
+    DONE = "Done"
 
-    yield
-    logger.info("Backend API shutting down...")
+class Task(BaseModel):
+    """Defines a Task model."""
+    title: str = Field(..., min_length=1, max_length=200, description="Task title")
+    description: Optional[str] = Field(None, description="Task description")
+    status: Optional[TaskStatus] = Field(TaskStatus.TODO, description="Task status")
+    due_date: Optional[datetime] = Field(None, description="Task due date")
 
 app = FastAPI(
     title="Task Manager API",
-    description="API for task manager",
-    version="1.0.0",
-    lifespan=lifespan
+    description="A RESTful API for managing tasks with PostgreSQL backend",
+    version="1.0.0"
 )
 
 # Exception handlers
@@ -44,183 +51,35 @@ async def http_exception_handler(request, exc):
 # Root endpoint
 @app.get("/")
 def read_root():
+    """Root endpoint providing API information."""
+    logger.debug("Root endpoint accessed")
     return {
         "message": "Task Manager API",
         "version": "1.0.0",
         "endpoints": {
-            "tasks": "/api/tasks",
             "health": "/health",
-            "mcp": "/mcp"
+            "value-error": "/value-error"
         }
     }
 
 # Health check endpoint
 @app.get("/health")
 async def health_check():
+    """Health check endpoint."""
+    logger.debug("Health check endpoint accessed")
     return {"status": "healthy", "service": "task-manager"}
 
-# Task API endpoints
-@app.post(
-    "/api/tasks",
-    response_model=TaskResponse,
-    status_code=201,
-    responses={
-        201: {"description": "Task created successfully"},
-        400: {"model": ErrorResponse, "description": "Invalid input"},
-        500: {"model": ErrorResponse, "description": "Internal server error"}
-    }
-)
-async def create_task(
-    task: TaskCreate,
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Create a new task.
-    
-    - **title**: Task title (required, 1-200 characters)
-    - **description**: Task description (optional)
-    - **status**: Task status (optional, defaults to "To Do")
-    - **due_date**: Task due date (optional, must be in the future)
-    """
-    try:
-        logger.info(f"Creating task: {task.title}")
-        new_task = await TaskCRUD.create_task(db, task)
-        return TaskResponse(**new_task.to_dict())
-    except ValueError as e:
-        logger.error(f"Validation error: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error creating task: {e}")
-        raise HTTPException(status_code=500, detail="Failed to create task")
+# Add a task
+@app.post("/api/tasks")
+def create_task(task: Task):
+    """Create a new task."""
+    logger.debug(f"Creating task: {task}")
+    logger.info("Creating task")
+    # Here you would add logic to save the task to the database
+    return task
 
-@app.get(
-    "/api/tasks",
-    response_model=TaskListResponse,
-    responses={
-        200: {"description": "Tasks retrieved successfully"},
-        500: {"model": ErrorResponse, "description": "Internal server error"}
-    }
-)
-async def get_tasks(
-    skip: int = Query(0, ge=0, description="Number of tasks to skip"),
-    limit: int = Query(100, ge=1, le=1000, description="Maximum number of tasks to return"),
-    status: Optional[TaskStatus] = Query(None, description="Filter by task status"),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Retrieve all tasks with optional filtering and pagination.
-    
-    - **skip**: Number of tasks to skip (for pagination)
-    - **limit**: Maximum number of tasks to return (1-1000)
-    - **status**: Filter by task status (optional)
-    """
-    try:
-        logger.info(f"Retrieving tasks: skip={skip}, limit={limit}, status={status}")
-        status_value = status.value if status else None
-        tasks, total = await TaskCRUD.get_tasks(db, skip=skip, limit=limit, status=status_value)
-        task_responses = [TaskResponse(**task.to_dict()) for task in tasks]
-        return TaskListResponse(tasks=task_responses, total=total)
-    except Exception as e:
-        logger.error(f"Error retrieving tasks: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve tasks")
-
-@app.get(
-    "/api/tasks/{task_id}",
-    response_model=TaskResponse,
-    responses={
-        200: {"description": "Task retrieved successfully"},
-        404: {"model": ErrorResponse, "description": "Task not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"}
-    }
-)
-async def get_task(
-    task_id: int,
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Retrieve a specific task by ID.
-    
-    - **task_id**: The ID of the task to retrieve
-    """
-    try:
-        logger.info(f"Retrieving task: {task_id}")
-        task = await TaskCRUD.get_task(db, task_id)
-        if not task:
-            raise HTTPException(status_code=404, detail=f"Task with id {task_id} not found")
-        return TaskResponse(**task.to_dict())
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error retrieving task: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve task")
-
-@app.put(
-    "/api/tasks/{task_id}",
-    response_model=TaskResponse,
-    responses={
-        200: {"description": "Task updated successfully"},
-        400: {"model": ErrorResponse, "description": "Invalid input"},
-        404: {"model": ErrorResponse, "description": "Task not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"}
-    }
-)
-async def update_task(
-    task_id: int,
-    task: TaskUpdate,
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Update an existing task.
-    
-    - **task_id**: The ID of the task to update
-    - **title**: New task title (optional)
-    - **description**: New task description (optional)
-    - **status**: New task status (optional)
-    - **due_date**: New task due date (optional, must be in the future)
-    """
-    try:
-        logger.info(f"Updating task: {task_id}")
-        updated_task = await TaskCRUD.update_task(db, task_id, task)
-        if not updated_task:
-            raise HTTPException(status_code=404, detail=f"Task with id {task_id} not found")
-        return TaskResponse(**updated_task.to_dict())
-    except ValueError as e:
-        logger.error(f"Validation error: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error updating task: {e}")
-        raise HTTPException(status_code=500, detail="Failed to update task")
-
-@app.delete(
-    "/api/tasks/{task_id}",
-    status_code=204,
-    responses={
-        204: {"description": "Task deleted successfully"},
-        404: {"model": ErrorResponse, "description": "Task not found"},
-        500: {"model": ErrorResponse, "description": "Internal server error"}
-    }
-)
-async def delete_task(
-    task_id: int,
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Delete a task.
-    
-    - **task_id**: The ID of the task to delete
-    """
-    try:
-        logger.info(f"Deleting task: {task_id}")
-        success = await TaskCRUD.delete_task(db, task_id)
-        if not success:
-            raise HTTPException(status_code=404, detail=f"Task with id {task_id} not found")
-        return None
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error deleting task: {e}")
-        raise HTTPException(status_code=500, detail="Failed to delete task")
-
-
+@app.get("/value-error")
+async def trigger_value_error():
+    """Raise a ValueError for testing purposes."""
+    logger.debug("Triggering ValueError for testing")
+    return await value_error_handler(None, ValueError("This is a test ValueError"))
