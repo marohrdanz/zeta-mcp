@@ -4,13 +4,16 @@ from database import Task
 from schemas import TaskCreate, TaskUpdate
 from typing import Optional, List
 from datetime import datetime, timezone
+import log_setup as log_setup
 
+logger = log_setup.configure_logging('DEBUG')
 class TaskCRUD:
     """CRUD operations for tasks"""
     
     @staticmethod
     async def create_task(db: AsyncSession, task_data: TaskCreate) -> Task:
         """Create a new task"""
+        logger.info(f"Creating task: {task_data.title}")
         task = Task(
             title=task_data.title,
             description=task_data.description,
@@ -36,6 +39,7 @@ class TaskCRUD:
         status: Optional[str] = None
     ) -> tuple[List[Task], int]:
         """Get all tasks with optional filtering"""
+        logger.debug("Top of get_tasks")
         query = select(Task)
         
         if status:
