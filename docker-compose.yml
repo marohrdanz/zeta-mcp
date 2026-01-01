@@ -17,10 +17,10 @@ services:
       retries: 5
 
   mcp:
-    build: ./mcp
+    build: ./mcp-server
     container_name: zeta-mcp
     volumes:
-      - ./mcp/app:/app
+      - ./mcp-server/app:/app
     ports:
       - 8001:8001
     environment:
