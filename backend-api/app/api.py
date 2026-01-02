@@ -148,12 +148,39 @@ async def list_mcp_resources():
         raise HTTPException(status_code=500, detail="Unable to list MCP resources")
 
 # Add a task
-@app.post("/api/tasks")
-def create_task(task: Task):
+@app.post("/api/mcp/tasks")
+async def create_task(task: Task):
     """Create a new task."""
-    logger.debug(f"Creating task: {task}")
-    logger.info("Creating task")
-    # Here you would add logic to save the task to the database
+    logger.debug(f"Creating task: {task.title}")
+    logger.debug(f"  with description: {task.description}")
+    if not mcp_session:
+        raise HTTPException(status_code=503, detail="MCP session not initialized")
+    try:
+        result = await mcp_session.call_tool("create_task_tool",
+            arguments={
+                "tasfask": {
+                    "title": task.title,
+                    "description": task.description,
+                    "status": task.status,
+                    "due_date": task.due_date.isoformat() if task.due_date else None
+                }
+            }
+        )
+        if result.isError:
+            error_content = result.content[0].text if result.content else "Unknown error"
+            logger.error(f"MCP tool returned error: {error_content}")
+            if "validation error" in error_content.lower():
+                raise HTTPException(status_code=422, detail={
+                    "type": "validation_error",
+                    "message": error_content
+                })
+            raise HTTPException(status_code=500, detail="MCP tool error during task creation")
+        logger.debug(f"Task creation result: {result.content}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error invoking MCP tool to create task: {e}")
+        raise HTTPException(status_code=500, detail="Failed to invoke MCP tool to create task")
     return task
 
 @app.get("/api/mcp/tasks")
