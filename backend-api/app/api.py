@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 from contextlib import asynccontextmanager
 import anthropic
@@ -10,11 +10,61 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.sse import sse_client
 from enum import Enum
 import json
+from os import getenv
 
 import log_setup as log_setup
 import logging
 
 logger = log_setup.configure_logging('DEBUG')
+
+anthropic_client = anthropic.Anthropic()
+
+class ChatRequest(BaseModel):
+    """Defines the chat request model."""
+    message: str = Field(..., description="The user's message to the chatbot")
+    conversation_history: Optional[List[Dict[str, str]]] = Field(
+        None, description="Optional conversation history"
+    )
+
+class ChatResponse(BaseModel):
+    """Defines the chat response model."""
+    response: str = Field(..., description="The chatbot's response message")
+    conversation_history: List[Dict[str, str]] = Field(
+        ..., description="Updated conversation history including the latest exchange"
+    )
+
+## define MCP tools for claude
+MCP_TOOLS = [
+    {
+        "name": "return_fourty_two",
+        "description": "Returns the number 42",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
+    },
+    {
+        "name": "create_task_tool",
+        "description": "Create a new task witha title, and optional description, status, and due date",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "task": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string", "minLength": 1, "maxLength": 200},
+                        "description": {"type": "string"},
+                        "status": {"type": "string", "enum": ["To Do", "In Progress", "Done"]},
+                        "due_date": {"type": "string", "format": "date-time"}
+                    },
+                    "required": ["title"]
+                }
+            },
+            "required": ["task"]
+        }
+    }
+]
 
 class TaskStatus(str, Enum):
     """Defines task status enumeration."""
@@ -199,3 +249,137 @@ async def get_tasks():
     except Exception as e:
         logger.error(f"Error invoking MCP tool: {e}")
         raise HTTPException(status_code=500, detail="Failed to invoke MCP tool")
+
+@app.post("/api/chat")
+async def chat(request: ChatRequest):
+    """
+    Chat endpoint that uses Clause to interact with MCP tools.
+
+    Request body:
+    {
+        "message": "Create a task to buy groceries",
+        "conversation_history": [] # Optional
+    }
+    """
+    if not mcp_session:
+        raise HTTPException(status_code=503, detail="MCP session not initialized")
+    try:
+        # Build prompt for Claude
+        messages = request.conversation_history or []
+        messages.append({
+            "role": "user",
+            "content": request.message
+        })
+        response = anthropic_client.messages.create(
+            model=getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929"),
+            max_tokens=4096,
+            tools=MCP_TOOLS,
+            messages=messages
+        )
+        # process tool calls in a loop
+        while response.stop_reason == "tool_use":
+            logger.debug("Processing tool use request from Claude")
+            # Extract tool use from response
+            tool_use_block = next(
+                block for block in response.content if block.type == "tool_use"
+            )
+            logger.info(f"Tool use requested: {tool_use_block.name}")
+            logger.debug(f"Took input: {tool_use_block.input}")
+            # Call the requested MCP tool
+            tool_result = await execute_mcp_tool(
+                tool_use_block.name,
+                tool_use_block.input
+            )
+            # Add assistnent's response and tool result to messages
+            messages.append({
+                "rool": "assistent",
+                "content": response.content
+            })
+            messages.append({
+                "role": "user",
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": tool_use_block.id,
+                        "content": tool_result
+                    }
+                ]
+            })
+            # Get new response from Claude
+            response = anthropic_client.messages.create(
+                model=getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929"),
+                max_tokens=4096,
+                tools=MCP_TOOLS,
+                messages=messages
+            )
+        # Extract final response from Claude
+        final_response = next(
+            (block for block in response.content if hasattr(block, "text")),
+            "I've completed your request."
+        )
+        logger.debug(f"Final response: {final_response}")
+        logger.info(f"Final response text: {final_response.text}")
+        logger.debug(f"Response content: {response.content}")
+        logger.debug(f"Conversation history: {messages + [{'role': 'assistent', 'content': response.content[0].text}]}")
+
+        return JSONResponse(content={
+            "response": final_response.text,
+            "conversation_history": messages + [{"role": "assistent", "content": response.content[0].text}]
+        })
+
+    except Exception as e:
+        logger.error(f"Error during chat interaction: {e}")
+        raise HTTPException(status_code=500, detail="Chat interaction failed")
+
+async def execute_mcp_tool(tool_name: str, tool_input: Dict[str, Any]) -> str:
+    """Helper function to execute an MCP tool and return the result as a string."""
+    if not mcp_session:
+        raise HTTPException(status_code=503, detail="MCP session not initialized")
+    try:
+        # Map tool names to MCP tool names
+        tool_mapping = {
+            "return_fourty_two_tool": "return_fourty_two_tool",
+            "create_task_tool": "create_task_tool"
+        }
+        mcp_tool_name = tool_mapping.get(tool_name)
+        if not mcp_tool_name:
+            logger.error(f"Unknown tool requested {tool_name}")
+            return "Unknown tool requested."
+        if tool_name == "return_fourty_two_tool":
+            result = await mcp_session.call_tool(mcp_tool_name, arguments={})
+        elif tool_name == "create_task_tool":
+            result = await mcp_session.call_tool(
+                mcp_tool_name,
+                arguments={
+                    "task": {
+                        "title": tool_input["title"],
+                        "description": tool_input.get("description"),
+                        "status": tool_input.get("status")
+                     }
+                }
+            )
+        else:
+            logger.error(f"Tool {tool_name} not implemented in execute_mcp_tool")
+            return "Tool not implemented."
+
+        if result.isError:
+            error_content = result.content[0].text if result.content else "Unknown error"
+            logger.error(f"MCP tool returned error: {error_content}")
+            return f"Error executing tool {tool_name}: {error_content}"
+
+        logger.debug(f"Tool {tool_name} executed successfully with result: {result.content}")
+        return result.content[0].text if result.content else "No content returned from tool."
+    except Exception as e:
+        logger.error(f"Error executing MCP tool {tool_name}: {e}")
+        return f"Exception occurred while executing tool {tool_name}."
+
+
+
+
+
+
+
+
+
+
+

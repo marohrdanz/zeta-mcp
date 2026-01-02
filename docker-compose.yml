@@ -45,6 +45,9 @@ services:
       depends_on:
         mcp-server:
           condition: service_healthy
+      environment:
+        ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+        ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-5-20250929}
 
   frontend:
     build: ./frontend
