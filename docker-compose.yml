@@ -16,7 +16,7 @@ services:
       timeout: 5s
       retries: 5
 
-  mcp:
+  mcp-server:
     build: ./mcp-server
     container_name: zeta-mcp
     volumes:
@@ -28,6 +28,14 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  backend-api:
+      build: ./backend-api
+      container_name: zeta-api
+      volumes:
+        - ./backend-api/app:/app
+      ports:
+        - 8004:8004
 
   frontend:
     build: ./frontend

@@ -16,4 +16,4 @@ RUN apt-get update && apt-get install -y curl vim jq && \
 
 EXPOSE 8001
 
-CMD ["uvicorn", "server:app", "--reload", "--port", "8001", "--host", "0.0.0.0"]
+CMD ["fastmcp", "run", "server.py", "--transport", "sse", "--host", "0.0.0.0", "--port", "8001"]

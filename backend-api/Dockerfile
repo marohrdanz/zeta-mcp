@@ -14,6 +14,6 @@ RUN apt-get update && apt-get install -y curl vim jq && \
     cp /etc/skel/.bashrc /root/  && \
     cp /etc/skel/.vimrc  /root/
 
-EXPOSE 8001
+EXPOSE 8004
 
-CMD ["uvicorn", "server:app", "--reload", "--port", "8001", "--host", "0.0.0.0"]
+CMD ["uvicorn", "api:app", "--reload", "--port", "8004", "--host", "0.0.0.0"]
