@@ -99,10 +99,11 @@ async def get_fourty_two():
         raise HTTPException(status_code=503, detail="MCP session not initialized")
     try:
         result = await mcp_session.call_tool("return_fourty_two", arguments={})
-        return {"result": result.content}
+        # The tool is expected to return a single text output with "42"
+        return {"result": result.content[0].text}
     except Exception as e:
         logger.error(f"Error invoking MCP tool: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to invoke MCP tool: {e}")
+        raise HTTPException(status_code=500, detail="Failed to invoke MCP tool")
 
 @app.get("/api/mcp/tools")
 async def list_mcp_tools():
@@ -122,7 +123,29 @@ async def list_mcp_tools():
         }
     except Exception as e:
         logger.error(f"Error listing MCP tools: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to list MCP tools: {e}")
+        raise HTTPException(status_code=500, detail="Failed to list MCP tools")
+
+@app.get("/api/mcp/resources")
+async def list_mcp_resources():
+    """List all available MCP resources."""
+    if not mcp_session:
+        raise HTTPException(status_code=503, detail="MCP session not initialized")
+    try:
+        result = await mcp_session.list_resources()
+        logger.debug(f"Resources: {result.resources}")
+        return {
+                "resources": [
+                    {
+                        "uri": resource.uri,
+                        "name": resource.name
+                    } for resource in result.resources
+                ]
+        }
+    except Exception as e:
+        logger.error(f"Error listing MCP resources: {e}")
+        raise HTTPException(status_code=500, detail="Unable to list MCP resources")
+
+
 
 
 # Add a task
