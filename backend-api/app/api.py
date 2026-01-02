@@ -9,6 +9,7 @@ import anthropic
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.sse import sse_client
 from enum import Enum
+import json
 
 import log_setup as log_setup
 import logging
@@ -30,7 +31,6 @@ class Task(BaseModel):
 
 # Global MCP session variable
 mcp_session = None
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -63,7 +63,6 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-
 # Root endpoint
 @app.get("/")
 def read_root():
@@ -74,8 +73,10 @@ def read_root():
         "version": "1.0.0",
         "endpoints": {
             "health": "/health",
-            "tasks": "/api/tasks",
-            "mcp-tools": "/api/mcp/tools"
+            "fourtytwo": "/api/mcp/fourty-two",
+            "mcp-tools": "/api/mcp/tools",
+            "mcp-resources": "/api/mcp/resources",
+            "tasks": "/api/mcp/tasks"
         }
     }
 
@@ -104,6 +105,7 @@ async def get_fourty_two():
     except Exception as e:
         logger.error(f"Error invoking MCP tool: {e}")
         raise HTTPException(status_code=500, detail="Failed to invoke MCP tool")
+
 
 @app.get("/api/mcp/tools")
 async def list_mcp_tools():
@@ -145,9 +147,6 @@ async def list_mcp_resources():
         logger.error(f"Error listing MCP resources: {e}")
         raise HTTPException(status_code=500, detail="Unable to list MCP resources")
 
-
-
-
 # Add a task
 @app.post("/api/tasks")
 def create_task(task: Task):
@@ -157,3 +156,19 @@ def create_task(task: Task):
     # Here you would add logic to save the task to the database
     return task
 
+@app.get("/api/mcp/tasks")
+async def get_tasks():
+    """Invoke the MCP tool to get all tasks."""
+    logger.debug("Invoking the MCP tool to get all tasks")
+    if not mcp_session:
+        raise HTTPException(status_code=503, detail="MCP session not initialized")
+    try:
+        result = await mcp_session.call_tool("get_tasks_tool", arguments={})
+        logger.debug(f"Tasks retrieved: {result.content}")
+        first_content = result.content[0] # should only be one text output returned
+        text_data = first_content.text
+
+        return JSONResponse(content=json.loads(text_data))
+    except Exception as e:
+        logger.error(f"Error invoking MCP tool: {e}")
+        raise HTTPException(status_code=500, detail="Failed to invoke MCP tool")

@@ -39,7 +39,9 @@ async def get_tasks_tool() -> dict:
         async with async_session_maker() as db:
             tasks, total = await TaskCRUD.get_tasks(db)
             task_responses = [TaskResponse(**task.to_dict()) for task in tasks]
-            return TaskListResponse(tasks=task_responses, total=total)
+            task_list = TaskListResponse(tasks=task_responses, total=total)
+            logger.debug(f"Retrieved tasks successfully: {task_list.model_dump()}")
+            return task_list.model_dump()
     except Exception as e:
         logger.error(f"Error getting tasks: {e}")
         raise Exception(f"Failed to retrieve tasts: {e}")
