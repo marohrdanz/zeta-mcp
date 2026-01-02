@@ -45,8 +45,6 @@ async def lifespan(app: FastAPI):
                 await session.initialize()
                 mcp_session = session
                 logger.info("MCP clent session initialized")
-                #tools = await session.list_tools()
-                #logger.info(f"Available tools: {[tool.name for tool in tools]}")
 
                 yield # FastAPI runs while this context is active
 
@@ -65,20 +63,6 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Exception handlers
-@app.exception_handler(ValueError)
-async def value_error_handler(request, exc):
-    return JSONResponse(
-        status_code=400,
-        content={"detail": str(exc), "status_code": 400}
-    )
-
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request, exc):
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"detail": exc.detail, "status_code": exc.status_code}
-    )
 
 # Root endpoint
 @app.get("/")
@@ -90,7 +74,6 @@ def read_root():
         "version": "1.0.0",
         "endpoints": {
             "health": "/health",
-            "value-error": "/value-error",
             "tasks": "/api/tasks",
             "mcp-tools": "/api/mcp/tools"
         }
@@ -121,6 +104,26 @@ async def get_fourty_two():
         logger.error(f"Error invoking MCP tool: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to invoke MCP tool: {e}")
 
+@app.get("/api/mcp/tools")
+async def list_mcp_tools():
+    """List all available MCP tools."""
+    logger.debug("Listing MCP tools")
+    if not mcp_session:
+        raise HTTPException(status_code=503, detail="MCP session not initialized")
+    try:
+        result = await mcp_session.list_tools()
+        return {
+            "tools": [
+                {
+                    "name": tool.name,
+                    "description": tool.description
+                } for tool in result.tools
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Error listing MCP tools: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to list MCP tools: {e}")
+
 
 # Add a task
 @app.post("/api/tasks")
@@ -131,8 +134,3 @@ def create_task(task: Task):
     # Here you would add logic to save the task to the database
     return task
 
-@app.get("/value-error")
-async def trigger_value_error():
-    """Raise a ValueError for testing purposes."""
-    logger.debug("Triggering ValueError for testing")
-    return await value_error_handler(None, ValueError("This is a test ValueError"))
