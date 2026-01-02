@@ -28,6 +28,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "8001"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
 
   backend-api:
       build: ./backend-api
@@ -36,6 +42,9 @@ services:
         - ./backend-api/app:/app
       ports:
         - 8004:8004
+      depends_on:
+        mcp-server:
+          condition: service_healthy
 
   frontend:
     build: ./frontend
