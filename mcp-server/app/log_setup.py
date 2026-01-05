@@ -1,10 +1,10 @@
 from colorlog import ColoredFormatter
 import logging
-import os
+from os import getenv
 
 logger = None
 
-def configure_logging(level='INFO'):
+def configure_logging():
   global logger
   if not logger:
     COLORS = {
@@ -25,6 +25,7 @@ def configure_logging(level='INFO'):
     stream_handler.setFormatter(formatter)
     logger= logging.getLogger(__name__)
     logger.addHandler(stream_handler)
+    level = getenv('LOG_LEVEL', 'INFO').upper()
     logger.setLevel(level)
   return logger
 

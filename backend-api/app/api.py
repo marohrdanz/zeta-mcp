@@ -16,7 +16,7 @@ from os import getenv
 import log_setup as log_setup
 import logging
 
-logger = log_setup.configure_logging('DEBUG')
+logger = log_setup.configure_logging()
 
 anthropic_client = anthropic.Anthropic()
 

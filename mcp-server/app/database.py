@@ -6,7 +6,7 @@ import os
 import enum
 import log_setup as log_setup
 
-logger = log_setup.configure_logging('DEBUG')
+logger = log_setup.configure_logging()
 
 # Database URL from environment variable
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://taskuser:taskpass@localhost:5432/taskmanager")

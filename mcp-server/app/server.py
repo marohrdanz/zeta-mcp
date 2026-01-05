@@ -15,11 +15,12 @@ from schemas import (
 from crud import TaskCRUD
 
 mcp = FastMCP("Task Manager")
-logger = log_setup.configure_logging('DEBUG')
+logger = log_setup.configure_logging()
 
 @mcp.tool
 def return_fourty_two() -> float:
     """Return the number 42"""
+    logger.info("Return fourty two tool invoked")
     logger.debug("Return fourty two tool invoked")
     return 42
 

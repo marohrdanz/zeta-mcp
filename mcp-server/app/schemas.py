@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from enum import Enum
 import log_setup as log_setup
 
-logger = log_setup.configure_logging('DEBUG')
+logger = log_setup.configure_logging()
 
 class TaskStatus(str, Enum):
     TODO = "To Do"

@@ -6,7 +6,7 @@ from typing import Optional, List
 from datetime import datetime, timezone
 import log_setup as log_setup
 
-logger = log_setup.configure_logging('DEBUG')
+logger = log_setup.configure_logging()
 class TaskCRUD:
     """CRUD operations for tasks"""
     
