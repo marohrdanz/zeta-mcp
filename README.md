@@ -3,7 +3,7 @@
 This repository is for me to learn the Model Context Protocol (MCP) by building a
 simple task manager application. This application uses an MCP (FastMCP), an
 API server (FastAPI), language model (Anthropic Claude) to manage tasks, and
-a postgreSQL database to store tasks. I haven't (yet) built a web interface, so
+a PostgreSQL database to store tasks. I haven't (yet) built a web interface, so
 interactions, even the chat ones, are via API calls.
 
 
@@ -21,7 +21,7 @@ The only required env is the `ANTHROPIC_API_KEY`, but you can also set:
 
 
 Once the system is running, the automatically generated FastAPI documentation
-is availabe at http://localhost:8004/docs.
+is available at http://localhost:8004/docs.
 
 ## Work-in-Progress usage
 
@@ -88,7 +88,7 @@ $ curl -s -X POST http://localhost:8044/api/chat \
 ```
 
 
-The final resonse from this type of POST is similar to:
+The final response from this type of POST is similar to:
 
 ```text
 I've created the task \"Finish the report\" with a note that it's due next Friday.
