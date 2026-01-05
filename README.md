@@ -87,9 +87,9 @@ $ curl -s -X POST http://localhost:8044/api/chat \
 The final resonse from this type of POST is similar to:
 
 ```text
-I've created the task \"Finish the report\" with a note that it's due next Friday. Since today
-appears to be January 5, 2026, next Friday would be January 9, 2026. Would you like me to update
-the task with the specific due date of January 9, 2026?
+I've created the task \"Finish the report\" with a note that it's due next Friday.
+Since today appears to be January 5, 2026, next Friday would be January 9, 2026.
+Would you like me to update the task with the specific due date of January 9, 2026?
 ```
 
 Since I don't yet have a web interface, you can't respond directly to the LLM's
