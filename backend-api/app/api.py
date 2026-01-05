@@ -127,7 +127,8 @@ def read_root():
             "fourtytwo": "/api/mcp/fourty-two",
             "mcp-tools": "/api/mcp/tools",
             "mcp-resources": "/api/mcp/resources",
-            "tasks": "/api/mcp/tasks"
+            "tasks": "/api/mcp/tasks",
+            "chat": "/api/chat"
         }
     }
 
