@@ -51,19 +51,5 @@ services:
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-5-20250929}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
 
-  frontend:
-    build: ./frontend
-    ports:
-      - 3001:3001
-    container_name: zeta-frontend
-    environment:
-      - REACT_APP_API_URL=http://mcp:8001
-      - CHOKIDAR_USEPOLLING=true
-      - WATCHPACK_POLLING=true
-    volumes:
-      # for development:
-      - ./frontend/src:/app/src
-      - ./frontend/public:/app/public
-
 volumes:
   postgres_data:
