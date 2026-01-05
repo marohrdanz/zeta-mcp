@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -33,6 +33,27 @@ class ChatResponse(BaseModel):
     conversation_history: List[Dict[str, str]] = Field(
         ..., description="Updated conversation history including the latest exchange"
     )
+
+class ConnectionManager:
+    """Manages WebDocket connections for real-time chat communication"""
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        """Accepts a new websocket connection"""
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(delf, websocket: WebSocket):
+        """Removes a websocket connection from the active connections list"""
+        self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: str):
+        """Sends a message to all active connections"""
+        for connection in self.active_connections:
+            await connection.send_text(message)
+
+manager = ConnectionManager()
 
 ## define MCP tools for claude
 MCP_TOOLS = [
@@ -120,6 +141,137 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """Websocket endoint for real-time chat communication."""
+    await manager.connect(websocket)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            await manager.broadcast(f"Message: {data}")
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+@app.websocket("/ws/chat")
+async def websocket_chat(websocket: WebSocket):
+    """
+    Websocket chat endpoint with MCP tool support.
+
+    JSON format for incommint messages:
+    {
+      "role": "user",
+      "message": "Create a task to buy groceries"
+    }
+    """
+    await websocket.accept()
+    logger.debug("Websocket chat connection accepted")
+    if not mcp_session:
+        logger.error("No MCP session available for websocket chat")
+        await websocket.send_json({
+            "type": "error",
+            "message": "MCP session not initialized."
+        });
+        await websocket.close()
+        return
+
+    conversation_history = []
+
+    try:
+        while True:
+            data = await websocket.receive_json()
+            logger.debug(f"Received message: {data.get('message')}")
+            user_message = data.get("message")
+            logger.info(f"Received chat message: {user_message}")
+            if not user_message:
+                continue
+
+            conversation_history.append({
+                "role": "user",
+                "content": user_message
+            })
+
+            response = anthropic_client.messages.create(
+                model=getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929"),
+                max_tokens=4096,
+                tools=MCP_TOOLS,
+                messages=conversation_history
+            )
+            logger.info(f"Received response from Claude: {response.content}")
+
+            while response.stop_reason == "tool_use":
+                tool_use_block = next(
+                    block for block in response.content if block.type == "tool_use"
+                )
+                # Send tool usage notification to the client
+                await websocket.send_json({
+                    "type": "tool_use",
+                    "tool_name": tool_use_block.name,
+                    "tool_input": tool_use_block.input
+                })
+                # Execute the MCP tool
+                tool_result = await execute_mcp_tool(
+                    tool_use_block.name,
+                    tool_use_block.input
+                )
+                # send tool result notification
+                await websocket.send_json({
+                    "type": "tool_result",
+                    "tool_name": tool_use_block.name,
+                    "result": tool_result
+                })
+                conversation_history.append({
+                    "role": "assistant",
+                    "content": [block.model_dump() for block in response.content]
+                })
+                conversation_history.append({
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": tool_use_block.id,
+                            "content": tool_result
+                        }
+                    ]
+                })
+
+                response = anthropic_client.messages.create(
+                    model=getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929"),
+                    max_tokens=4096,
+                    tools=MCP_TOOLS,
+                    messages=conversation_history
+                )
+
+            final_response = next(
+                (block for block in response.content if hasattr(block, "text")),
+                "I've completed your request."
+            )
+
+            if final_response:
+                conversation_history.append({
+                    "role": "assistant",
+                    "content": final_response.text
+                })
+                await websocket.send_json({
+                    "type": "response",
+                    "message": final_response.text,
+                    "conversation_history": conversation_history
+                })
+
+
+    
+
+
+    except WebSocketDisconnect:
+        logger.info("Websocket client disconnected")
+    except Exception as e:
+        logger.error(f"Error in websocket chat: {e}")
+        await websocket.send_json({
+            "type": "error",
+            "message": "An error occured during chat interaction."
+        })
+
+
 
 # Root endpoint
 @app.get("/")
@@ -356,14 +508,6 @@ async def execute_mcp_tool(tool_name: str, tool_input: Dict[str, Any]) -> str:
             result = await mcp_session.call_tool(mcp_tool_name, arguments={})
         elif tool_name == "create_task_tool":
             logger.debug(f"Executing create_task_tool with input: {tool_input}")
-#            arguments={
-#                "task": {
-#                    "title": tool_input.task["title"],
-#                    "description": tool_input.get("description"),
-#                    "status": tool_input.get("status")
-#                }
-#            }
-            #logger.debug(f"create_task_tool arguments: {arguments}")
             result = await mcp_session.call_tool(
                 mcp_tool_name,
                 arguments=tool_input
