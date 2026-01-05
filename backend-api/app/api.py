@@ -208,7 +208,7 @@ async def create_task(task: Task):
     try:
         result = await mcp_session.call_tool("create_task_tool",
             arguments={
-                "tasfask": {
+                "task": {
                     "title": task.title,
                     "description": task.description,
                     "status": task.status,
