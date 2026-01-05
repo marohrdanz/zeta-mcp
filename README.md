@@ -23,7 +23,7 @@ The only required env is the `ANTHROPIC_API_KEY`, but you can also set:
 Once the system is running, the automatically generated FastAPI documentation
 is available at http://localhost:8004/docs.
 
-I don't yet have a web interface, just a RESTful and WebSocket API.
+I don't yet have a web interface, just a WebSocket API and a RESTful API.
 
 ## WebSocket API Example Usage
 
@@ -101,7 +101,7 @@ Connection closed by the server.
 
 ## RESTful API Example Useage
 
-Here are a few examples (see above-mentioned FastAPI docs for more):
+Here are a few REST examples (see above-mentioned FastAPI docs for more):
 
 **List all the MCP tools:**
 
