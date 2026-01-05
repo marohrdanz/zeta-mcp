@@ -10,6 +10,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.sse import sse_client
 from enum import Enum
 import json
+import pprint
 from os import getenv
 
 import log_setup as log_setup
@@ -278,22 +279,19 @@ async def chat(request: ChatRequest):
         )
         # process tool calls in a loop
         while response.stop_reason == "tool_use":
-            logger.debug("Processing tool use request from Claude")
             # Extract tool use from response
             tool_use_block = next(
                 block for block in response.content if block.type == "tool_use"
             )
-            logger.info(f"Tool use requested: {tool_use_block.name}")
-            logger.debug(f"Took input: {tool_use_block.input}")
             # Call the requested MCP tool
             tool_result = await execute_mcp_tool(
                 tool_use_block.name,
                 tool_use_block.input
             )
-            # Add assistnent's response and tool result to messages
+            # Add assistant's response and tool result to messages
             messages.append({
-                "rool": "assistent",
-                "content": response.content
+                "role": "assistant",
+                "content": [block.model_dump() for block in response.content]
             })
             messages.append({
                 "role": "user",
@@ -317,14 +315,15 @@ async def chat(request: ChatRequest):
             (block for block in response.content if hasattr(block, "text")),
             "I've completed your request."
         )
-        logger.debug(f"Final response: {final_response}")
-        logger.info(f"Final response text: {final_response.text}")
-        logger.debug(f"Response content: {response.content}")
-        logger.debug(f"Conversation history: {messages + [{'role': 'assistent', 'content': response.content[0].text}]}")
+        fun_response = {
+            "response": final_response.text,
+            "conversation_history": messages + [{"role": "assistant", "content": response.content[0].text}]
+        }
+        logger.info(f"Chat response: \n{json.dumps(fun_response, indent=2)}")
 
         return JSONResponse(content={
             "response": final_response.text,
-            "conversation_history": messages + [{"role": "assistent", "content": response.content[0].text}]
+            "conversation_history": messages + [{"role": "assistant", "content": response.content[0].text}]
         })
 
     except Exception as e:
@@ -348,16 +347,20 @@ async def execute_mcp_tool(tool_name: str, tool_input: Dict[str, Any]) -> str:
         if tool_name == "return_fourty_two_tool":
             result = await mcp_session.call_tool(mcp_tool_name, arguments={})
         elif tool_name == "create_task_tool":
+            logger.debug(f"Executing create_task_tool with input: {tool_input}")
+#            arguments={
+#                "task": {
+#                    "title": tool_input.task["title"],
+#                    "description": tool_input.get("description"),
+#                    "status": tool_input.get("status")
+#                }
+#            }
+            #logger.debug(f"create_task_tool arguments: {arguments}")
             result = await mcp_session.call_tool(
                 mcp_tool_name,
-                arguments={
-                    "task": {
-                        "title": tool_input["title"],
-                        "description": tool_input.get("description"),
-                        "status": tool_input.get("status")
-                     }
-                }
+                arguments=tool_input
             )
+            logger.debug(f"create_task_tool result: {result}")
         else:
             logger.error(f"Tool {tool_name} not implemented in execute_mcp_tool")
             return "Tool not implemented."
