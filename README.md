@@ -1,10 +1,15 @@
 # Learning MCP
 
 This repository is for me to learn the Model Context Protocol (MCP) by building a
-simple task manager application. This application uses an MCP (FastMCP), an
-API server (FastAPI), language model (Anthropic Claude) to manage tasks, and
-a PostgreSQL database to store tasks. I haven't (yet) built a web interface, so
-interactions, even the chat ones, are via API calls.
+simple task manager application. This application uses 
+
+- an MCP server ([fastmcp](https://pypi.org/project/fastmcp/)) to manage the tools and interactions between the LLM and the database
+- an API server ([fastapi](https://pypi.org/project/fastapi/)) to expose endpoints for the MCP server and to allow users to interact with the system
+- an LLM ([anthropic](https://pypi.org/project/anthropic/)) to interpret user requests and determine which tools to use, and to generate responses to the user
+- a PostgreSQL database to store tasks
+
+I haven't built a web interface (yet?), so the main way to interact with the system is
+through the WebSocket API or the RESTful API. Examples are below.
 
 
 ## Initial Setup
@@ -23,8 +28,6 @@ The only required env is the `ANTHROPIC_API_KEY`, but you can also set:
 Once the system is running, the automatically generated FastAPI documentation
 is available at http://localhost:8004/docs.
 
-I don't yet have a web interface, just a WebSocket API and a RESTful API.
-
 ## WebSocket API Example Usage
 
 The WebSocket API accepts JSON (in anticipation of a web interface). So
@@ -33,7 +36,10 @@ it's not the most user-friendly experience with tools like [wscat](https://www.n
 To make it more bearable, I wrote a simple python script to connect with the WebSocket API
 and allow you to type messages in a more user-friendly way. You can find it at `pychat.py` in the root of this repo.
 
-Here's some example interactions:
+The output is formatted to show tool usage and results, as well as the assistant's responses (this project
+is a learning exercise).
+
+Below are some example interactions.
 
 NOTE: Claude is sometimes slow to respond, so you may have to wait a few seconds for the responses to come back.
 
