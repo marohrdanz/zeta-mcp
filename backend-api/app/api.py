@@ -109,7 +109,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Task Manager API",
-    description="A RESTful API for managing tasks with PostgreSQL backend",
+    description="A RESTful API to for managing tasks, utilizing MCP tools, LLM chat, and with PostgreSQL backend",
     version="1.0.0",
     lifespan=lifespan
 )
