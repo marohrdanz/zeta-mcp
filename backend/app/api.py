@@ -497,14 +497,14 @@ async def execute_mcp_tool(tool_name: str, tool_input: Dict[str, Any]) -> str:
     try:
         # Map tool names to MCP tool names
         tool_mapping = {
-            "return_fourty_two_tool": "return_fourty_two_tool",
+            "return_fourty_two": "return_fourty_two",
             "create_task_tool": "create_task_tool"
         }
         mcp_tool_name = tool_mapping.get(tool_name)
         if not mcp_tool_name:
             logger.error(f"Unknown tool requested {tool_name}")
             return "Unknown tool requested."
-        if tool_name == "return_fourty_two_tool":
+        if tool_name == "return_fourty_two":
             result = await mcp_session.call_tool(mcp_tool_name, arguments={})
         elif tool_name == "create_task_tool":
             logger.debug(f"Executing create_task_tool with input: {tool_input}")
