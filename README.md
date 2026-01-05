@@ -30,6 +30,8 @@ examples (see above-mentioned FastAPI docs for more):
 
 **List all the MCP tools:**
 
+Invokes the MCP tools endpoint to list all available tools.
+
 ```bash
 $ curl -s http://localhost:8004/api/mcp/tools | jq .
 {
@@ -51,6 +53,8 @@ $ curl -s http://localhost:8004/api/mcp/tools | jq .
 ```
 
 **List all tasks in the database:**
+
+Invokes the MCP tool `get_tasks_tool` to retrieve all tasks from the PostgreSQL database.
 
 ```bash
 $ curl -s http://localhost:8004/api/mcp/tasks | jq .
