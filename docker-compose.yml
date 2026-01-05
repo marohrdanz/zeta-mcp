@@ -51,5 +51,18 @@ services:
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-5-20250929}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
 
+  frontend:
+    build: ./frontend
+    container_name: zeta-frontend
+    ports:
+      - 5173:5173
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # to prevent overwriting node_modules on host
+    environment:
+      - VITE_API_URL=http://localhost:8004
+    depends_on:
+      - backend
+
 volumes:
   postgres_data:
