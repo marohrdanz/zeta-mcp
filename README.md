@@ -23,11 +23,9 @@ The only required env is the `ANTHROPIC_API_KEY`, but you can also set:
 Once the system is running, the automatically generated FastAPI documentation
 is available at http://localhost:8004/docs.
 
-## Work-in-Progress usage
-
 I don't yet have a web interface, just a RESTful and WebSocket API.
 
-### WebSocket API Example Usage
+## WebSocket API Example Usage
 
 The WebSocket API accepts JSON (in anticipation of a web interface). So
 it's not the most user-friendly experience with tools like [wscat](https://www.npmjs.com/package/wscat).
@@ -37,7 +35,7 @@ and allow you to type messages in a more user-friendly way. You can find it at `
 
 Here's some example interactions:
 
-NOTE: Claude is a bit slow to respond, so you may have to wait a few seconds for the responses to come back.
+NOTE: Claude is sometimes slow to respond, so you may have to wait a few seconds for the responses to come back.
 
 ```bash
 $ python3 pychat.py
@@ -101,9 +99,7 @@ Bye!
 Connection closed by the server.
 ```
 
-
-
-### RESTful API Example Useage
+## RESTful API Example Useage
 
 Here are a few examples (see above-mentioned FastAPI docs for more):
 
@@ -175,8 +171,8 @@ Since today appears to be January 5, 2026, next Friday would be January 9, 2026.
 Would you like me to update the task with the specific due date of January 9, 2026?
 ```
 
-Since I don't yet have a web interface, you can't respond directly to the LLM's
-follow-up question. But you can see the newly created task in the database:
+With HTTP requests, it's a bit clunky to respond to the LLM's follow-up question.
+But you can see the newly created task in the database:
 
 ```bash
 $ curl -s http://localhost:8004/api/mcp/tasks | jq .
